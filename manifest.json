@@ -8,8 +8,8 @@
   "content_scripts": [
     {
       "matches": ["http://www.reddit.com/*", "https://www.reddit.com/*", "http://old.reddit.com/*", "https://old.reddit.com/*"],
-      "js": ["jquery.js", "jquery.linkify.min.js", "hoverintent.js", "Markdown.Converter.js", "jquery-ui.min.js", "popup.js"],
-      "css": ["style.css", "jquery-ui.min.css"]
+      "js": ["dep/jquery.js", "dep/jquery.linkify.min.js", "dep/hoverintent.js", "dep/Markdown.Converter.js", "dep/jquery-ui.min.js", "js/popup.js"],
+      "css": ["dep/jquery-ui.min.css", "css/style.css"]
     }
   ],
 
@@ -18,12 +18,14 @@
         ],
 
   "web_accessible_resources": [
-    "smallLoader.gif", 
-    "settings.png",
-    "error.png"
+    "img/smallLoader.gif", 
+    "img/settings.png",
+    "img/error.png"
   ],
 
-  "icons": { "16": "newIcon16.png",
-           "48": "newIcon48.png",
-          "128": "newIcon128.png" }
+  "icons": { 
+    "16": "img/newIcon16.png",
+    "48": "img/newIcon48.png",
+    "128": "img/newIcon128.png" 
+  }
 }
