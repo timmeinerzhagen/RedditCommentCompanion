@@ -1,9 +1,9 @@
 {
   "manifest_version": 2,
 
-  "name": "Reddit Comment Companion",
+  "name": "Reddit Comment Companion Dev",
   "description": "Hover over a post's comment url to see the top 10 comments for that post. Works with RES.",
-  "version": "2.2.12",
+  "version": "3.0.0",
 
   "content_scripts": [
     {

@@ -1,156 +1,77 @@
-(function(){
+// Load Extension Config
+var hoverOff =				loadFromStorage("hoverOff", false);
+var customWidth = 			loadFromStorage("popUpWidth", 500);
+var customHeight = 			loadFromStorage("popUpHeight", 500);
+var customPosition = 		loadFromStorage("popUpPosition", null);
+var autoOpenRES = 			loadFromStorage("clickSetting", true);
+var shouldShowUpdateDiv = 	loadFromStorage("update7", false);
 
-var topComments = [];
-var currenPostID;
-var isPopUpDisplay = false;
+// Helper variables
 var currentPost;
 var links;
-var results;
 var isDayTheme = true;
 
 var subredditStyleLabel;
 var currentLink;
 
-var customWidth = 0;
-var customHeight = 0;
-var customPosition = 0;
-
-var autoOpenRES = true;
 var isSettingsVisible = false;
-var shouldShowUpdateDiv = false;
-var nightModeDiv;
-var hoverOff = false;
 var hoverOffTime;
-var $resSettingsButton = $('#RESSettingsButton');
-var $siteTable = $('.content').first();
-var accessToken = null;
 
-// voteOnPost();
-// //UyanUCShem89jdROdo0gOHXz80w
-// 	//check if coming from ouath
-// 	checkForParam("access_token", function(result) {
-// 		if (result != null) {
-
-// 			accessToken = result;
-
-
-// 			// codeTempToken = result;
-
-// 			voteOnPost();
-
-// 			// chrome.storage.local.set({'oAuthCode': result}, function() {});
-// 		}
-// 	});
-
-	chrome.storage.local.get('hoverOff', function(obj) {
-
-		if (Object.getOwnPropertyNames(obj).length > 0) {
-			if (obj.hoverOff) {
-				hoverOff = true;
-			}
-		}
-
-		setUpHoverEvents();
-		setUpScroll();
+function loadFromStorage(varName, defaultValue) {
+	chrome.storage.local.get(varName, function(obj) {
+		if (Object.getOwnPropertyNames(obj).length > 0)
+			return obj.popUpWidth;
 	});
-
-	chrome.storage.local.get('popUpWidth', function(obj) {
-		if (Object.getOwnPropertyNames(obj).length > 0) {
-			customWidth = obj.popUpWidth;
-		}
-	});
-
-	chrome.storage.local.get('codeTempToken', function(obj) {
-		if (Object.getOwnPropertyNames(obj).length > 0) {
-			codeTempToken = obj.codeTempToken;
-		}
-	});
-
-	chrome.storage.local.get('popUpHeight', function(obj) {
-		if (Object.getOwnPropertyNames(obj).length > 0) {
-			customHeight = obj.popUpHeight;
-		}
-	});
-
-	chrome.storage.local.get('popUpPosition', function(obj) {
-		if (Object.getOwnPropertyNames(obj).length > 0) {
-			customPosition = obj.popUpPosition;
-		}
-	});
-
-	 chrome.storage.local.get('clickSetting', function(obj) {
-		if (Object.getOwnPropertyNames(obj).length > 0) {
-			if (obj.clickSetting) {
-				autoOpenRES = true;
-			}else{
-				 autoOpenRES = false;
-			} 
-			 checkForRes();
-		}
-	});
-
- chrome.storage.local.get('update7', function(obj) {
-	if (Object.getOwnPropertyNames(obj).length <= 0) {
-		shouldShowUpdateDiv = true;
-	}
-});
-
-function setIsDayTheme(dayTheme) {
-
-	isDayTheme = dayTheme;
-
-	if (isDayTheme) {
-
-		selectedDay();
-	} else {
-
-		selectedNight();
-	}
+	return defaultValue;
 }
 
-function showUpdateDiv(){
-	// var upateDiv = $('<div id="rcc-update">'+
-	// 			'<p style="font-weight: bold; color: black">Updates</p>'+
-	// 			'<ul id="rcc-update-list" style="color: black">'+
-	// 				'<li style="color: black">- Fixed lingering night mode issues from RES updates</li><br>'+
-	// 			'</ul><br>'+
-	// 			'<p style="color: black">If you enjoy this extension please leave a <a href="https://chrome.google.com/webstore/detail/reddit-comment-companion/dbcojchbgnoapagipaamdjfdkcmdgjek/reviews">review!</a></p>'+ 
-	// 			'<p style="color: black">Submit bugs and feature requests <a href="http://www.reddit.com/r/rccChromeExt/" style="color: blue">here! </a></p><br><br>'+
-	// 		'<a id="rcc-close-update" href="#" style="position:absolute; bottom:2px; left:2px; font-size: 15px; color: black;">X</a>'+
-	// 	'</div>' );
+setUpHoverEvents();
 
-	// upateDiv.css('width', $(window).width() / 3);
+function setUpHoverEvents() {
+	links = $('a.comments').toArray();
 
-	// currentLink.append(upateDiv);
-
-	// $('a#rcc-close-update').on('click', function(e){
-	// 	e.preventDefault();
-	// 	$('#rcc-update').remove();
-	// });
-
-	// shouldShowUpdateDiv = false;
-	// chrome.storage.local.set({'update7': true}, function() {});
+	links.forEach(function(l,i){
+		var link = $(l);
+		link.unbind();
+		link.hoverIntent({ 
+				over: function(e) {
+					clearTimeout(hoverOffTime);
+					if ($('#pop-up').length <= 0) {
+							retrieveComments(l.href, link); 
+						}else if($('#pop-up').length > 0){
+							removePopUpFromView();
+							retrieveComments(l.href, link); 
+						}
+						currentPost = $(link.parent().parent().parent().parent());
+						if (isDayTheme) {
+							currentPost.css('background-color', 'rgb(247,247,248)'); 
+						}else{
+							currentPost.css('background-color', 'rgb(18, 18, 18)'); 
+						}
+					}, 
+			out: function(){
+					if (hoverOff) {
+					 	timedHover();
+					}
+				},
+			interval: 150,
+			sensitivity: 2
+		});
+	});
 }
-
 
 function checkForRes() {
-
-	if ($resSettingsButton != null) {
-
+	if ($('#RESSettingsButton') != null) {
 		if (autoOpenRES && hoverOff === false) {
-
 			setUpCollapsableEvents();
 		}
+		var backgroundColor = $('.content').first().css('background-color');
 
-		var backgroundColor = $siteTable.css('background-color');
-
-		if (backgroundColor !== 'rgb(38, 38, 38)') {
-
-			setIsDayTheme(true);
-		} else {
-
-			setIsDayTheme(false);
-		}
+		isDayTheme = backgroundColor !== 'rgb(38, 38, 38)';
+		if (isDayTheme)
+			selectedDay();
+		else 
+			selectedNight();
 	}    
 }
 
@@ -178,7 +99,6 @@ function setUpCollapsableEvents(){
 
 					currentPost = commentsATag.parent().parent().parent().parent();
 					currentPost = $(currentPost);
-					currenPostID = currentPost.data('fullname');
 					if (isDayTheme) {
 						currentPost.css('background-color', 'rgb(247,247,248)'); 
 					}else{
@@ -196,65 +116,23 @@ function removeCollapsableEvents(){
 	});
 }
 
-function setUpHoverEvents() {
-	links = $('a.comments').toArray();
-
-	links.forEach(function(l,i){
-		$(l).unbind();
-		var jL = $(l);
-			$(jL).hoverIntent({ 
-
-				over: function(e) {
-					clearTimeout(hoverOffTime);
-
-				 if ($('#pop-up').length <= 0) {
-						retrieveComments(l.href, jL); 
-					}else if($('#pop-up').length > 0){
-						removePopUpFromView();
-						retrieveComments(l.href, jL); 
-					}
-
-					currentPost = jL.parent().parent().parent().parent();
-					currentPost = $(currentPost);
-					currenPostID = currentPost.data('fullname');
-
-					if (isDayTheme) {
-						currentPost.css('background-color', 'rgb(247,247,248)'); 
-					}else{
-						currentPost.css('background-color', 'rgb(18, 18, 18)'); 
-					}
-			}, 
-			out: function(){
-					if (hoverOff) {
-					 timedHover();
-					}
-			},
-			interval: 150,
-			sensitivity: 2
-		});
-	});
-}
 
 function timedHover(){
-		hoverOffTime = setTimeout(function(){
+	hoverOffTime = setTimeout(function(){
 		clearTimeout(hoverOffTime);
-							if ($('#pop-up:hover').length != 0) {
-								$('#pop-up').mouseleave(function(){
-									if (hoverOff) {
-										removePopUpFromView();
-									}
-								});
-							}else{
-								 removePopUpFromView();
-							}
-						}, 1000);
+		if ($('#pop-up:hover').length != 0) {
+			$('#pop-up').mouseleave(function(){
+				if (hoverOff) {
+					removePopUpFromView();
+				}
+			});
+		}else{
+				removePopUpFromView();
+		}
+	}, 1000);
 }
 
 function setUpPop (jL){
-	if (nightModeDiv) {
-		nightModeDiv.unbind();
-	}
-
 	$('div#pop-up').css('visibility', 'visible');
 	$('.close-button').css('visibility', 'visible');
 
@@ -278,7 +156,7 @@ function setUpPop (jL){
 	}
 
 
-	var imageURL = chrome.extension.getURL("smallLoader.gif");
+	var imageURL = chrome.extension.getURL("img/smallLoader.gif");
 	var loadingIMG = $('<img id="loader" src="'+imageURL+'">')
 
 	 if ($('#loader').length <= 0) {
@@ -348,14 +226,9 @@ function retrieveComments (url, jL){
 					$(subredditStyleLabel).remove();
 
 					// settings button
-					var settingsURL = chrome.extension.getURL("settings.png");
+					var settingsURL = chrome.extension.getURL("img/settings.png");
 					var settingsIMG = $('<div id="rcc-settings-container"><a id="rcc-settings-img-url" href="#"><img id="rcc-settings-img" src="'+settingsURL+'"></a></div>');
 					
-					// if (authToken === null) {
-
-						// setUpAuthButton(popUp);
-					// }
-
 					popUp.append(settingsIMG);
 
 					setUpSettingsDropDown(settingsIMG);
@@ -381,12 +254,6 @@ function retrieveComments (url, jL){
 							e.preventDefault();
 						});
 					}
-
-					isPopUpDisplay = true;
-					console.log('comments =============');
-					console.log('comments =============');
-					console.log(data);
-					var postResponseID = data[0].data.children[0].data.name;
 
 					var postPermalink = data[0].data.children[0].data.permalink;
 					var author = data[0].data.children[0].data.author;
@@ -450,20 +317,16 @@ function retrieveComments (url, jL){
 			},
 			error: function(request, status, error) {
 					$('#loader').remove();
-					var errorURL = chrome.extension.getURL("error.png");
-					var errorIMG = $('<img id="error" src="'+errorURL+'">')
+					var errorURL = chrome.extension.getURL("img/error.png");
+					var errorIMG = $('<img class="error" src="'+errorURL+'">')
 					var popUp = $('#pop-up');
 					popUp.append(errorIMG);
-					popUp.css('height', '50px');
-					popUp.css('width', '50px');
 			}
 	});
 	 
 }
 
 function formatComments(commentsArray){
-		console.log('============= formatComments');
-		console.log(commentsArray);
 		commentsArray.forEach(function(c, i){
 			if (typeof c.html != 'undefined') {
 				var points;
@@ -568,75 +431,6 @@ function createComment(c, isChild){
 	return commentDiv;
 }
 
-function setUpAuthButton(popUp) {
-
-	if ($('#rcc-auth-button').length <= 0) {
-
-		var authButton = $('<button id="rcc-auth-button">Authenticate to Enable Voting</button>');
-
-		authButton.on('click', function(e) {
-
-			authenticateWithOAuth();
-		});
-
-		// popUp.append(authButton);
-	}
-}
-
-function voteOnPost() {
-
-	var data = {
-		"id" : "t3_41200j",
-		"dir" : -1, 
-	};
-
-	$.ajax({
-		type: "POST",
-		headers: {
-			'Authorization': "bearer 14709823-hSX-AB_KBpk5E9hwK0stznRDD-o"
-		},
-		url: "https://oauth.reddit.com/api/vote",
-		contentType: 'application/json',
-		data: JSON.stringify(data),
-		success: function(r) {
-
-			console.log(r);
-		},
-		error: function(request, status, error) {
-
-			console.log(error);
-			console.log(request);
-			console.log(status);
-		}
-	});
-
-	// $.ajax({
-	// 	type: "GET",
-	// 	headers: {
-	// 		'Authorization': "bearer " + authToken
-	// 	},
-	// 	url: "https://oauth.reddit.com/api/vote",
-	// 	contentType: 'application/json',
-	// 	data: JSON.stringify(data),
-	// 	success: function(r) {
-
-	// 	},
-	// 	error: function(request, status, error) {
-
-	// 		console.log(error);
-	// 		console.log(request);
-	// 		console.log(status);
-	// 	}
-	// });
-}
-
-function authenticateWithOAuth() {
-
-	var oauthURL = "https://www.reddit.com/api/v1/authorize?client_id=YQAdjgCyuBbD-g&response_type=token&state=oijojopjopj&scope=vote&redirect_uri=https://www.reddit.com";
-
-	window.open(oauthURL, "_blank", "resizable=yes, scrollbars=yes, titlebar=yes, width=800, height=900, top=10, left=10");
-}
-
 function htmlDecode(input){
 	var e = document.createElement('div');
 	e.innerHTML = input;
@@ -707,8 +501,6 @@ function containsObject(obj, list) {
 
 
 function removePopUpFromView (){
-	topComments = [];
-	results = [];
  if(currentPost.mouseenter()){
 		currentPost.mouseleave(animateClosing());
 	}else{
@@ -727,13 +519,6 @@ function animateClosing(){
 	if (shouldShowUpdateDiv) {
 		$('#rcc-update').remove();
 	}
-}
-
-function appendColorPickers(settingsForm) {
-
-	var backgroundPicker = $('<input type="color" name="favcolor" value="#ff0000">');
-
-	settingsForm.append(backgroundPicker);
 }
 
 function setUpSettingsDropDown(settings){
@@ -983,29 +768,3 @@ function setUpScroll(){
 	$('[id*="parent"]').scrollTop(100);
 
 }
-
-function checkForParam(key,callback) {
-
-	var win = window;
-
-	key = key.replace(/[*+?^$.\[\]{}()|\\\/]/g, "\\$&"); // escape RegEx meta chars
-    	var match = win.location.search.match(new RegExp("[?&]"+key+"=([^&]+)(&|$)"));
-
-    	callback(match && decodeURIComponent(match[1].replace(/\+/g, " ")));
-
-	// chrome.storage.local.get('oAuthCode', function(obj) {
-	// 	if (Object.getOwnPropertyNames(obj).length > 0) {
-
-	// 		callback(obj.oAuthCode);
-	// 	} else {
-
-	// 		key = key.replace(/[*+?^$.\[\]{}()|\\\/]/g, "\\$&"); // escape RegEx meta chars
- //    	var match = win.location.search.match(new RegExp("[?&]"+key+"=([^&]+)(&|$)"));
-
- //    	callback(match && decodeURIComponent(match[1].replace(/\+/g, " ")));
-	// 	}
-	// });
-}
-//"Markdown.Editor.js", "Markdown.Sanitizer.js",
-
-})();

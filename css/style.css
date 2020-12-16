@@ -1,4 +1,9 @@
 
+.error {
+  height: 50px;
+  width: 50px;
+}
+
 #author {
   color: #369;
   font-weight: bold;
