@@ -8,7 +8,7 @@
   "content_scripts": [
     {
       "matches": ["http://www.reddit.com/*", "https://www.reddit.com/*", "http://old.reddit.com/*", "https://old.reddit.com/*"],
-      "js": ["dep/jquery.js", "dep/jquery.linkify.min.js", "dep/hoverintent.js", "dep/Markdown.Converter.js", "dep/jquery-ui.min.js", "js/popup.js"],
+      "js": ["dep/jquery.min.js", "dep/jquery.linkify.min.js", "dep/hoverintent.js", "dep/Markdown.Converter.js", "dep/jquery-ui.min.js", "js/popup.js"],
       "css": ["dep/jquery-ui.min.css", "css/style.css"]
     }
   ],
