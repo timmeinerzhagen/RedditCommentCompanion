@@ -4,6 +4,7 @@
   width: 50px;
 }
 
+
 #author {
   color: #369;
   font-weight: bold;
@@ -69,14 +70,15 @@ p, li {
   height: 10px;
   padding-left: 5px;
 }
-#pop-up {
+#companion-window {
   display: inline;
   min-height: 20px;
   min-width: 20px;
   z-index: 99999999 !important;
   border-radius: 5px;
   padding-right: 10px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 .exit-button {

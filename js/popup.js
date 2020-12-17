@@ -1,33 +1,21 @@
-// Load Extension Config
-var hoverOff =				loadFromStorage("hoverOff", false);
+// Load Chrome extension config
 var customWidth = 			loadFromStorage("popUpWidth", 500);
 var customHeight = 			loadFromStorage("popUpHeight", 500);
 var customPosition = 		loadFromStorage("popUpPosition", null);
-var autoOpenRES = 			loadFromStorage("clickSetting", true);
-var shouldShowUpdateDiv = 	loadFromStorage("update7", false);
 
 // Helper variables
 var currentPost;
 var links;
-var isDayTheme = true;
+var isDarkTheme = false;
+var isDayTheme = false;
 
 var subredditStyleLabel;
-var currentLink;
 
-var isSettingsVisible = false;
 var hoverOffTime;
 
-function loadFromStorage(varName, defaultValue) {
-	chrome.storage.local.get(varName, function(obj) {
-		if (Object.getOwnPropertyNames(obj).length > 0)
-			return obj.popUpWidth;
-	});
-	return defaultValue;
-}
+setupHoverEvents();
 
-setUpHoverEvents();
-
-function setUpHoverEvents() {
+function setupHoverEvents() {
 	links = $('a.comments').toArray();
 
 	links.forEach(function(l,i){
@@ -35,13 +23,10 @@ function setUpHoverEvents() {
 		link.unbind();
 		link.hoverIntent({ 
 				over: function(e) {
-					clearTimeout(hoverOffTime);
-					if ($('#pop-up').length <= 0) {
-							retrieveComments(l.href, link); 
-						}else if($('#pop-up').length > 0){
+						clearTimeout(hoverOffTime);
+						if ($('#companion-window').length > 0) 
 							removePopUpFromView();
-							retrieveComments(l.href, link); 
-						}
+						openCompanion(l.href, link);
 						currentPost = $(link.parent().parent().parent().parent());
 						if (isDayTheme) {
 							currentPost.css('background-color', 'rgb(247,247,248)'); 
@@ -50,9 +35,7 @@ function setUpHoverEvents() {
 						}
 					}, 
 			out: function(){
-					if (hoverOff) {
-					 	timedHover();
-					}
+					timedHover();
 				},
 			interval: 150,
 			sensitivity: 2
@@ -60,14 +43,12 @@ function setUpHoverEvents() {
 	});
 }
 
-function checkForRes() {
+function checkTheme() {
 	if ($('#RESSettingsButton') != null) {
-		if (autoOpenRES && hoverOff === false) {
-			setUpCollapsableEvents();
-		}
+		setupCommentEvents();
 		var backgroundColor = $('.content').first().css('background-color');
 
-		isDayTheme = backgroundColor !== 'rgb(38, 38, 38)';
+		isDarkTheme = backgroundColor !== 'rgb(38, 38, 38)';
 		if (isDayTheme)
 			selectedDay();
 		else 
@@ -75,36 +56,26 @@ function checkForRes() {
 	}    
 }
 
-function setUpCollapsableEvents(){
-	$('div#pop-up').css('visibility', 'visible');
+function setupCommentEvents(){
+	$('div#companion-window').css('visibility', 'visible');
 	$('.close-button').css('visibility', 'visible');
 
 	var expandoButtons = $('.expando-button').toArray();
 	expandoButtons.forEach(function(e, i){
 		$(e).unbind();
 		$(e).on('click', function(){
-			if (!$(e).hasClass('expanded')) {
-					removePopUpFromView();
+			var commentsATag = $($(e).siblings('ul.flat-list.buttons').children('li.first').children('a'));
+			var commentsURL = commentsATag.attr('href');
+			if(currentPost != null)
+				removePopUpFromView();
+			openCompanion(commentsURL, commentsATag); 
+
+			currentPost = $(commentsATag.parent().parent().parent().parent());
+			if (isDayTheme) {
+				currentPost.css('background-color', 'rgb(247,247,248)'); 
 			}else{
-
-				var commentsATag = $($(e).siblings('ul.flat-list.buttons').children('li.first').children('a'));
-				var commentsURL = commentsATag.attr('href');
-
-					if ($('#pop-up').length <= 0) {
-						retrieveComments(commentsURL, commentsATag); 
-					}else if($('#pop-up').length > 0){
-						removePopUpFromView();
-						retrieveComments(commentsURL, commentsATag); 
-					}
-
-					currentPost = commentsATag.parent().parent().parent().parent();
-					currentPost = $(currentPost);
-					if (isDayTheme) {
-						currentPost.css('background-color', 'rgb(247,247,248)'); 
-					}else{
-						currentPost.css('background-color', 'rgb(18, 18, 18)'); 
-					}
-			}
+				currentPost.css('background-color', 'rgb(18, 18, 18)'); 
+				}
 		});
 	});
 }
@@ -116,15 +87,12 @@ function removeCollapsableEvents(){
 	});
 }
 
-
 function timedHover(){
 	hoverOffTime = setTimeout(function(){
 		clearTimeout(hoverOffTime);
-		if ($('#pop-up:hover').length != 0) {
-			$('#pop-up').mouseleave(function(){
-				if (hoverOff) {
-					removePopUpFromView();
-				}
+		if ($('#companion-window:hover').length != 0) {
+			$('#companion-window').mouseleave(function(){
+				removePopUpFromView();
 			});
 		}else{
 				removePopUpFromView();
@@ -132,20 +100,18 @@ function timedHover(){
 	}, 1000);
 }
 
-function setUpPop (jL){
-	$('div#pop-up').css('visibility', 'visible');
+function setupPop (jL){
+	$('div#companion-window').css('visibility', 'visible');
 	$('.close-button').css('visibility', 'visible');
 
-	checkForRes();
-	setUpScroll();
-	var popUp =  $('<div id="pop-up" class="trapScroll"></div>');
+	checkTheme();
+	setupScroll();
+	var popUp =  $('<div id="companion-window" class="trapScroll"></div>');
 	popUp.css('position', '');
 	popUp.css('top', '');
 	popUp.css('right', '');
 
 	jL.parent().append(popUp);
-
-	currentLink = jL.parent();
 
 	if (isDayTheme) {
 		popUp.css('background-color', 'white');
@@ -155,7 +121,6 @@ function setUpPop (jL){
 		popUp.css('border-color', '#e4e4e4');
 	}
 
-
 	var imageURL = chrome.extension.getURL("img/smallLoader.gif");
 	var loadingIMG = $('<img id="loader" src="'+imageURL+'">')
 
@@ -164,162 +129,121 @@ function setUpPop (jL){
 	 }
 }
 
-function retrieveComments (url, jL){
+function openCompanion (url, jL){
 	subredditStyleLabel = $($('.hover.redditname')[1]).parent().children('div')[0];
-	setUpPop(jL); 
-	 if (shouldShowUpdateDiv) {
-					showUpdateDiv();
-		}
+	setupPop(jL); 
 	topComments = [];
 	$.ajax({
-				url: url +'.json',
-				dataType: 'json',
-				success: function(data) {
-					$('#loader').remove();
-					$('.idv-comment').remove();
+			url: url +'.json',
+			dataType: 'json',
+			success: function(data) {
+				$('#loader').remove();
+				$('.idv-comment').remove();
 
-					var popUp = $('#pop-up');
-					
-					popUp.css('position', 'fixed');
+				var popUp = $('#companion-window');
+				
+				// Set popup dimensions and position
+				popUp.css('position', 'fixed');
 
+				if (customHeight) 
+					popUp.css('height', customHeight);
+				else
+					popUp.css('max-height', $(window).height());
+				
 
-					if (customHeight) {
-						popUp.css('height', customHeight);
-					}else{
-						popUp.css('max-height', $(window).height());
-					}
+				if (customWidth)
+					popUp.css('width', customWidth);
+				else
+					popUp.css('width', $(window).width() / 3);           
+				
 
-					if (customWidth) {
-						popUp.css('width', customWidth);
-					}else{
-						popUp.css('width', $(window).width() / 3);           
-					}
-
-					if (customPosition) {
-						popUp.css('top', customPosition.top);
-						popUp.css('left', customPosition.left);
-					}else{
-						popUp.css('top', '0px');
-						popUp.css('right', '0px');
-					}
-					
-					popUp.resizable({
-						 helper: "ui-resizable-helper",
-						 handles: 'w, e, n, s, nw, ne, se, sw',
-						 stop: function( event, ui ) {
+				if (customPosition) {
+					popUp.css('top', customPosition.top);
+					popUp.css('left', customPosition.left);
+				}else{
+					popUp.css('top', '0px');
+					popUp.css('right', '0px');
+				}
+				
+				// Add windows functionality
+				popUp.resizable({
+						helper: "ui-resizable-helper",
+						handles: 'w, e, n, s, nw, ne, se, sw',
+						stop: function( event, ui ) {
 							customWidth = popUp.width();
 							chrome.storage.local.set({'popUpWidth': popUp.width()}, function() {});
 
 							customHeight = popUp.height();
 							chrome.storage.local.set({'popUpHeight': popUp.height()}, function() {});
-						 }
-					});
-
-					popUp.draggable({
-						 stop: function( event, ui ) {
-								customPosition = popUp.position();
-								chrome.storage.local.set({'popUpPosition': popUp.position()}, function() {});
-						 }
-					});
-
-					popUp.css('z-index', '21474836469999 !important');
-					$(subredditStyleLabel).remove();
-
-					// settings button
-					var settingsURL = chrome.extension.getURL("img/settings.png");
-					var settingsIMG = $('<div id="rcc-settings-container"><a id="rcc-settings-img-url" href="#"><img id="rcc-settings-img" src="'+settingsURL+'"></a></div>');
-					
-					popUp.append(settingsIMG);
-
-					setUpSettingsDropDown(settingsIMG);
-
-					if ($('.exit-button').length <= 0) {
-						var exitButton = $('<a class="exit-button" href="#"">X</a>');
-
-						if (hoverOff == false || hoverOff == null) {
-							var closeButton = $('<a class="close-button" href="#"">X</a>');
-							popUp.append(exitButton);
-
-							currentLink.append(closeButton);
-
-							closeButton.click(function(e){
-								removePopUpFromView();
-								e.preventDefault();
-							});
 						}
+				});
+				popUp.draggable({
+						stop: function( event, ui ) {
+							customPosition = popUp.position();
+							chrome.storage.local.set({'popUpPosition': popUp.position()}, function() {});
+						}
+				});
 
-						exitButton.click(function(e){
-							$('div#pop-up').css('visibility', 'hidden');
-							$('.close-button').css('visibility', 'hidden');
-							e.preventDefault();
-						});
+				popUp.css('z-index', '21474836469999 !important');
+				$(subredditStyleLabel).remove();
+
+				// Generate Controls
+				var exitButton = $('<a class="exit-button" href="#"">X</a>');
+				popUp.append(exitButton);
+				exitButton.click(function(e){
+					$('div#companion-window').css('visibility', 'hidden');
+					$('.close-button').css('visibility', 'hidden');
+					e.preventDefault();
+				});
+
+				var closeButton = $('<a class="close-button" href="#"">X</a>');
+				jL.parent().append(closeButton);
+				closeButton.click(function(e){
+					removePopUpFromView();
+					e.preventDefault();
+				});
+
+				
+				// Generate Comment list
+				var postPermalink = data[0].data.children[0].data.permalink;
+				var author = data[0].data.children[0].data.author;
+
+				results = data[1].data.children;
+
+				for (var i = 0; i <= results.length && i < 10; i++) {
+					var indivComment = results[i].data;
+
+					var commentInfo = {
+						author:  indivComment.author,
+						html: indivComment.body_html,
+						gilded: indivComment.gilded,
+						votes: indivComment.ups,
+						isOP: (author === indivComment.author),
+						permalink: postPermalink + indivComment.id,
+						firstReply: firstReply
 					}
 
-					var postPermalink = data[0].data.children[0].data.permalink;
-					var author = data[0].data.children[0].data.author;
-
-					results = data[1].data.children;
-
-					for (var i = 0; i <= results.length; i++) {
-
-						if(!results[i]){
-							break;
-						}
-
-						var indivComment = results[i].data;
-
-						if (topComments.length === 10) {
-								
-							break;
-						}else{
-
-							var firstReply 
-							if (indivComment.replies && indivComment.replies.data.children[0].data.body) {
-								firstReply = indivComment.replies.data.children[0].data;
-								firstReply = {
-									author: firstReply.author,
-									html : firstReply.body_html,
-									gilded: firstReply.gilded,
-									votes: firstReply.ups,
-									isOP: false,
-									peermalink: postPermalink + firstReply.id
-								}
-							}else{
-								firstReply = null;
-							}
-
-							var commentInfo = {
-								author:  indivComment.author,
-								html: indivComment.body_html,
-								gilded: indivComment.gilded,
-								votes: indivComment.ups,
-								isOP: false,
-								permalink: postPermalink + indivComment.id,
-								firstReply: firstReply
-							}
-							
-							if (author === indivComment.author) {
-								commentInfo.isOP = true;
-							}
-
-							if (firstReply) {
-								if (firstReply.author === author) {
-									firstReply.isOP = true;
-								}
-							}
-
-							if (topComments.length <= 10 && containsObject(commentInfo, topComments) == false) {
-								topComments.push(commentInfo);
-							};
+					var firstReply = null;
+					if (indivComment.replies && indivComment.replies.data.children[0].data.body) {
+						firstReply = indivComment.replies.data.children[0].data;
+						firstReply = {
+							author: firstReply.author,
+							html : firstReply.body_html,
+							gilded: firstReply.gilded,
+							votes: firstReply.ups,
+							isOP: (firstReply.author === author),
+							permalink: postPermalink + firstReply.id
 						}
 					}
+					topComments.push(commentInfo);
+				}
 				formatComments(topComments);
 			},
 			error: function(request, status, error) {
 					$('#loader').remove();
 					var errorURL = chrome.extension.getURL("img/error.png");
 					var errorIMG = $('<img class="error" src="'+errorURL+'">')
-					var popUp = $('#pop-up');
+					var popUp = $('#companion-window');
 					popUp.append(errorIMG);
 			}
 	});
@@ -337,14 +261,14 @@ function formatComments(commentsArray){
 					parentComment.append($('<a class="permalink" href="'+c.permalink+'">View Thread</a>'));
 				}
 
-				$('#pop-up').append(parentComment);
+				$('#companion-window').append(parentComment);
 			};
 
 		});
 		
 		$('.comment-text').linkify();
 
-		addEventToURLS($('#pop-up').find('a').toArray());
+		addEventToURLS($('#companion-window').find('a').toArray());
 
 		if (isDayTheme) {
 			selectedDay();
@@ -353,12 +277,12 @@ function formatComments(commentsArray){
 		}
 
 		 $('body').on('click', function(e){
-				$('div#pop-up').css('visibility', 'hidden');
+				$('div#companion-window').css('visibility', 'hidden');
 				$('.close-button').css('visibility', 'hidden');
 				$('body').unbind();
 			});
 
-		 $('div#pop-up').click(function(e){
+		 $('div#companion-window').click(function(e){
 			 e.stopPropagation();
 			});
 		 $('div.idv-comment').click(function(e){
@@ -405,36 +329,11 @@ function createComment(c, isChild){
 		commentDiv.append(minus);
 	}
 
-	var convertedMarkdown = converter.makeHtml(htmlDecode(c.html));
-
-	if (convertedMarkdown === null) {
-
-		convertedMarkdown = c.html;
-	}
-
-	var points;
-
-	if (c.votes === 1) {
-		points = "  point";
-	}else{
-		points = "  points";
-	}
-
-	if (c.isOP) {
-		commentDiv.append($('<a class="author" id="op" href="/u/'+c.author+'">' + c.author +'</a><span class="votes">'+c.votes+points+'</span>'));
-	}else{
-		commentDiv.append($('<a id="author" href="/u/'+c.author+'">' + c.author +'</a><span class="votes">'+c.votes+points+'</span>'));
-	}
-
-	commentDiv.append($('<div class="comment-text">'+convertedMarkdown+'</div>')); 
+	var points = "  point" + (c.votes === 1 ? "s" : "");
+	commentDiv.append($('<a class="author" href="/u/'+c.author+'">' + (c.isOP ? 'id="op"' : '') + c.author +'</a><span class="votes">'+c.votes+points+'</span>'));
+	commentDiv.append($('<div class="comment-text">' + htmlDecode(c.html) + '</div>')); 
 
 	return commentDiv;
-}
-
-function htmlDecode(input){
-	var e = document.createElement('div');
-	e.innerHTML = input;
-	return e.childNodes[0].nodeValue;
 }
 
 function collapseComment(comment){
@@ -455,9 +354,7 @@ function collapseComment(comment){
 
 	var commentText = comment.children('div').toArray();
 	commentText.forEach(function(t, i){
-		t = $(t);
-
-		 t.css('visibility', 'hidden');
+		$(t).css('visibility', 'hidden');
 	});
 
 	comment.css('height', '10px');
@@ -473,8 +370,7 @@ function expandComment(comment){
 	var commentText = comment.children('div').toArray();
 
 	commentText.forEach(function(t, i){
-		t = $(t);
-		 t.css('visibility', 'visible');
+		$(t).css('visibility', 'visible');
 	});
 
 	comment.css('height', 'auto');
@@ -489,19 +385,9 @@ function expandComment(comment){
 	});
 }
 
-function containsObject(obj, list) {
-		var i;
-		for (i = 0; i < list.length; i++) {
-				if (list[i] === obj) {
-						return true;
-				}
-		}
-		return false;
-}
-
-
-function removePopUpFromView (){
- if(currentPost.mouseenter()){
+// Close Companion when click performed outside of Companion
+function removePopUpFromView(){
+ 	if(currentPost.mouseenter()){
 		currentPost.mouseleave(animateClosing());
 	}else{
 		animateClosing();
@@ -509,138 +395,19 @@ function removePopUpFromView (){
 }
 
 function animateClosing(){
-	var popUp = $('#pop-up');
+	/*var popUp = $('#companion-window');
 	popUp.remove();
 	popUp.css('position', '');
 	popUp.css('top', '');
 	popUp.css('right', '');
-	$('.close-button').remove();
-
-	if (shouldShowUpdateDiv) {
-		$('#rcc-update').remove();
-	}
+	$('.close-button').remove();*/
 }
 
-function setUpSettingsDropDown(settings){
-	var settingsForm = $('<div id="rcc-radio-container">'+
-
-		'<p id="rcc-settings-title">Auto-open with RES</p>'+
-		'<form id="rcc-settings-form" action="">'+
-		'<input id="rcc-on" type="radio" name="theme" value="on">On<br>'+
-		'<input id= "rcc-off" type="radio" name="theme" value="off">Off'+
-		'</div>');
-
-	settingsForm.css('visibility', 'hidden');
-	settings.append(settingsForm);
-
-	var primaryBackground = $('#rcc-primary-background');
-	var secondaryBackground = $('#rcc-secondary-background');
-	var commentTextColor = $('#rcc-comment-text-color');
-
-	primaryBackground.on('change', function() {
-		console.log(primaryBackground.val());
-	});
-
-	var onRadio = $('#rcc-on');
-	var offRadio = $('#rcc-off');
-
-	var onHover = $('#rcc-hover-on');
-	var offHover = $('#rcc-hover-off');
-
-	if (autoOpenRES) {
-		onRadio.attr('checked', 'checked');
-	}else{
-		offRadio.attr('checked', 'checked');
-	}
-
-	if (hoverOff) {
-		onHover.attr('checked', 'checked');
-	}else{
-		offHover.attr('checked', 'checked');
-	}
-
-	onHover.on('click', function(){
-		saveHoverSettings(true);
-	});
-
-	offHover.on('click', function(){
-		saveHoverSettings(false);
-	});
-
-	onRadio.on('click', function(){
-		saveClickSettings(true);
-	});
-	offRadio.on('click', function(){
-		saveClickSettings(false);
-	});
-
-	var settingsButton = $('#rcc-settings-img');
-	var radioContainer = $('#rcc-radio-container');
-
-	settingsButton.hover(displaySettings, function(){
-			$('body').unbind();
-
-			if (radioContainer.mouseenter()) {
-				radioContainer.mouseleave(function(){
-					hideSettings();
-				});
-			}else{
-				hideSettings();
-			}
-		});
-
-	settingsButton.on('click', function(e){
-		e.preventDefault();
-		if (isSettingsVisible) {
-			hideSettings();
-		}else{
-			displaySettings();
-		}
-	});
-}
-
-function hideSettings(){
-	$('#rcc-radio-container').css('visibility', 'hidden');
-
-	$('body').on('click', function(){
-		 $('div#pop-up').css('visibility', 'hidden');
-			$('.close-button').css('visibility', 'hidden');
-			removePopUpFromView();
-	});
-
-	isSettingsVisible = false;
-}
-
-function saveClickSettings(isOn){
-	autoOpenRES = isOn;
-	if (autoOpenRES && hoverOff === false) {
-		setUpCollapsableEvents();
-	}else{
-		removeCollapsableEvents();
-	}
-	chrome.storage.local.set({'clickSetting': isOn}, function() {});
-}
-
-function saveHoverSettings(isOn){
-	hoverOff = isOn;
-
-	if (hoverOff === true) {
-		if (autoOpenRES) {
-			removeCollapsableEvents()
-		}
-	}else{
-		if (autoOpenRES) {
-		setUpCollapsableEvents();
-		}
-	}
-
-	chrome.storage.local.set({'hoverOff': isOn}, function() {});
-}
-
+/* Day and Night Mode */
 function selectedDay(){
 	$('.child-comment').css('background-color', '');
 	$('.idv-comment').css('border-color', '');
-	$('#pop-up').css('border-color', '');
+	$('#companion-window').css('border-color', '');
 	$('div.comment-text > p').css('color', 'black');
 	$('div.comment-text > p > a').css('color', '#551a8b !important');
 	$('#rcc-radio-container').css('background-color', '');
@@ -656,14 +423,9 @@ function selectedNight(){
 
 }
 
-function displaySettings (e){
-	$('body').unbind();
-	isSettingsVisible = true;
-	$('#rcc-radio-container').css('visibility', 'visible');
-}
+/* Formatting */
 
-
-checkDocumentHeight(setUpURLS);
+checkDocumentHeight(setupURLS);
 
 function checkDocumentHeight(callback){
 		var lastHeight = document.body.clientHeight, newHeight, timer;
@@ -676,18 +438,14 @@ function checkDocumentHeight(callback){
 		})();
 }
 
-function setUpURLS(){
-		setUpHoverEvents();
-		if (autoOpenRES && hoverOff === false) {
-			setUpCollapsableEvents();
-		}
+function setupURLS(){
+		setupHoverEvents();
+		setupCommentEvents();
 }
 
+/* Scolling */
 
-
-//======================== stops scroll in comment div
-
-function setUpScroll(){
+function setupScroll(){
 
 	var trapScroll;
 
@@ -716,24 +474,17 @@ function setUpScroll(){
 
 					// only trap events once we've scrolled to the end
 					// or beginning
-					if ((dY>0 && curScrollPos >= scrollableDist) ||
-							(dY<0 && curScrollPos <= 0)) {
-
+					if ((dY>0 && curScrollPos >= scrollableDist) || (dY<0 && curScrollPos <= 0)) {
 						opt.onScrollEnd();
 						return false;
-						
 					}
-					
 				}
-				
 			}
 			
 			$(document)
 				.on('wheel', trapWheel)
 				.on('mouseleave', trapSelector, function(){
-					
 					$('body').removeClass(trapClassName);
-				
 				})
 				.on('mouseenter', trapSelector, function(){   
 				
@@ -767,4 +518,21 @@ function setUpScroll(){
 		.on('mouseleave', hideEventPreventedMsg);      
 	$('[id*="parent"]').scrollTop(100);
 
+}
+
+/* Util */
+
+function loadFromStorage(varName, defaultValue) {
+	var result = defaultValue;
+	chrome.storage.local.get(varName, function(obj) {
+		if (Object.getOwnPropertyNames(obj).length > 0)
+		result = obj.popUpWidth;
+	});
+	return result;
+}
+
+// Adjust to accomedate unsage string inputs
+function htmlDecode(input) {
+	var doc = new DOMParser().parseFromString(input, "text/html");
+	return doc.documentElement.textContent;
 }
